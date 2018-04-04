@@ -30,18 +30,10 @@ These instructions will get you a copy of the project up and running on your loc
   $ cd Flanagan
   ```
 
-  2. **Create conda environment based on `environment.yml` offers in this repository**
+  2. **Create conda environment based on `environment.yml` offered in this repository**
   ```
-  $ conda env create -f environments.yml -n cilia python=3.6
-  $ source activate cilia
-  ```
-
-  3. **Install Unet**
-  ```
-  $ git clone https://github.com/jakeret/tf_unet
-  $ cd tf_unet
-  $ python setup.py install
-  $ rm -rf tf_unet
+  $ conda env create -f environments.yml -n cilia_env python=3.6
+  $ source activate cilia_env
   ```
 
 ## Running the tests
