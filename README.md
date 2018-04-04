@@ -2,7 +2,7 @@
 
 This repository contains various algorithms implemented on cilia images segmentation which are completed on CSCI 8360, Data Science Practicum at the University of Georgia, Spring 2018.
 
-This project uses the time series grayscale 8-bit images of cilia biopsies taken with DIC optics published in the study [Automated identification of abnormal respiratory ciliary motion in nasal biopsies](http://stm.sciencemag.org/content/7/299/299ra124). There are 325 videos, 211 (65%) for training set and 114 (35%) for testing set. For each video, they are formed by 100 successive frames and performed as a 0.5 seconds real-time video. 3-label masks come with the videos and the pixels of them are colored according to the corresponding videos as **2** for cilia, **1** for a cell, and **0** for the background. In this case, we are only interested in cilia segmentation, the misclassification of the cells and backgrounds are not considered here.
+This project uses the time series grayscale 8-bit images of cilia biopsies taken with DIC optics published in the study [Automated identification of abnormal respiratory ciliary motion in nasal biopsies](http://stm.sciencemag.org/content/7/299/299ra124). There are 325 videos, 211 (65%) for training set and 114 (35%) for testing set. For each video, they are formed by 100 successive frames and performed as a 0.5 seconds real-time video. 3-label masks come with the videos and the pixels of them are colored according to the corresponding videos as **2** for cilia, **1** for a cell, and **0** for the background. In this case, we are only interested in cilia segmentation, the misclassification of the cells and backgrounds are not considered here.
 
 In this repository, we are offering three different methods as follows using different packages to locate the cilia and segment them out from the surrounding images.
 
@@ -61,7 +61,7 @@ Each folders includes one module and you can run it through the command above. E
 
 ## Evaluation
 
-The results count on the ratio of the values of intersection over union. Take the **intersection** as the area of overlap between the predicted region and the actual region, and the **union** as the area of the union of the predicted region and the actual region.
+The results count on the ratio of the values of intersection over union. Take the **intersection** as the area of overlap between the predicted region and the actual region, and the **union** as the area of the union of the predicted region and the actual region.
 
 <p align = "center">
 <img src = "https://www.pyimagesearch.com/wp-content/uploads/2016/09/iou_equation.png" width = 250>
