@@ -5,6 +5,8 @@ import tensorflow as tf
 import argparse
 from sklearn.model_selection import ShuffleSplit
 
+DEBUG = True
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description = "Data Maker",
@@ -15,17 +17,17 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--id", required=True,
         help = "The path to find the file with the names of the input datasets.")
 
-    parser.add_argument("-l", "--labl", required=True,
+    parser.add_argument("-l", "--labl",
         help = "The path to find the label images at.")
 
     parser.add_argument("-d", "--data", required=True,
         help = "The path to find the data image sets at.")
 
-    parser.add_argument("-o", "--output", required=True,
+    parser.add_argument("-o", "--output",required=True,
         help = "The path to write the output files to. ")
 
-    parser.add_argument("-t", "--test", action="store_true"
-        help = "The path to write the output files to. ")
+    parser.add_argument("-t", "--test", action="store_true",
+        help = "A flag to indicate that the data encoding is for test data")
     
     args = vars(parser.parse_args())
 
@@ -42,21 +44,26 @@ if __name__ == "__main__":
 
 
     ####################NEED TO SPLIT THE TESTING DATA INTO 128 by 128#################################
+    
     if test:
         writer = tf.python_io.TFRecordWriter(out_path + "_test.tfrecord")
         for fil in files:
-            test_data_path = dat_path + fil + ".npy"    
+            test_data_path = dat_path + fil     
             data = np.load(test_data_path).astype(np.float32) 
             k,m_train,n_train = data.shape
             print("Converting numpy arrays to raw strings")
-            data_raw = ddat_train.tostring()
+            data_raw = data.tostring()
+            name = test_data_path[:-4]
+            name = bytes(name,'utf-8')
             if (DEBUG) : 
                 print("data.shape: ", data.shape)
                 print("M_train: ",m_train,", N_train: ",n_train)
+                print(name)
             print("Writing raw strings to files.")
             train_example = tf.train.Example(
                 features = tf.train.Features(
                     feature = {
+                        'name' : tf.train.Feature(bytes_list=tf.train.BytesList(value=[name])),
                         'ddat' : tf.train.Feature(bytes_list=tf.train.BytesList(value=[data_raw])),
                         'm'    : tf.train.Feature(int64_list=tf.train.Int64List(value=[m_train])),
                         'n'    : tf.train.Feature(int64_list=tf.train.Int64List(value=[n_train]))
@@ -64,7 +71,7 @@ if __name__ == "__main__":
                 )
             )
             writer.write(train_example.SerializeToString())
-            writer.close()
+        writer.close()
     else:
         train_writer = tf.python_io.TFRecordWriter(out_path + "_train.tfrecord")
         test_writer  = tf.python_io.TFRecordWriter(out_path + "_validation.tfrecord")
