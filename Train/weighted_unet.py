@@ -55,7 +55,7 @@ class UNet():
         #                               normalizer_params={'is_training': is_training})
         #     down6c = tc.layers.max_pool2d(down6b, (2, 2), padding='same')
 
-        with tf.variable_scope('UNet/down_1-128_size'):
+        #with tf.variable_scope('UNet/down_1-128_size'):
             down7a = tc.layers.conv2d(down5c, 512, (3, 3), normalizer_fn=tc.layers.batch_norm,
                                       normalizer_params={'is_training': is_training})
             down7b = tc.layers.conv2d(down7a, 512, (3, 3), normalizer_fn=tc.layers.batch_norm,
