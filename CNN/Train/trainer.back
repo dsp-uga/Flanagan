@@ -1,0 +1,183 @@
+# Imports for the library
+from sklearn.model_selection import train_test_split
+import numpy as np
+import tensorflow as tf
+import tensorflow.contrib as tc
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import recall_score
+from sklearn.metrics import precision_score
+import glob
+from weighted_unet import UNet
+import json
+import sys
+from random import shuffle
+import argparse
+import os
+import pandas as pd
+#python3 trainer_cluster.py  -n model_tester  -e 1 -c 4
+#from scipy.imsc import imread
+#Paths should be made as arguments
+data_path       = "../data/newData/RandomSamples/Data/" #"CleanProject/Team-Crumpler/data/"
+labl_path          = "../data/newData/RandomSamples/Labl/" #"CleanProject/Team-Crumpler/data/regions/*.json"
+models_csv_path = "/home/crumpler/Nick/model_stats.csv"    #CleanProject/Team-Crumpler/model_stats.csv"
+
+np.random.seed(42)
+
+dims = (128,128) #(512,512) #which is used by the process_Y files which basically matches the dimension of the mask
+
+if __name__ == "__main__":
+
+    ############################################################################
+    # parameterizing model and defining file locations using command line args
+    ############################################################################
+    parser = argparse.ArgumentParser(description = "Data Maker",
+        epilog = "Use this program to  train a UNET model based on the type of data fpr input.",
+        add_help = "How to use",
+        prog = "python trainer.py [OPTIONAL_ARGS]")
+
+    parser.add_argument("-e", "--epochs", type = int, default = 3000,
+        help = "The number of epochs to run the training for.")
+
+    parser.add_argument("-l", "--lr", type = float, default = 0.0001,
+        help = "Learning rate hyperparameter; default is 0.0001.")
+
+    parser.add_argument("-o", "--opt", type = str, default = 'RMSProp',
+        choices = ['RMSProp','SGD', 'Adam', 'Adagrad', 'Momentum', 'Ftrl'],
+        help = "Optimizer hyperparameter; default is RMSProp.")
+
+    parser.add_argument("-w", "--weight", type = float, default = 1.,
+        help = "Weighting of positives relative to negatives in loss; default is 1.")
+
+    args = vars(parser.parse_args())
+
+    epochs = args['epochs']
+    lr     = args['lr']
+    opt    = args['opt']
+    weight = args['weight']
+        
+    save_path   = "data/checkpoints/" 
+    path_result = "data/results/" 
+
+    # for saving model statistics:
+    try:
+        stats_df = pd.read_csv(models_csv_path)
+    except:
+        stats_df = pd.DataFrame(columns=["model_name","epochs","dice","loss","precision","recall"])
+
+    ############################################################################
+    # preparing data for training and testing
+    ############################################################################
+    with open("train.txt") as f:
+        X = [data_path + x for x in f.readlines()]
+        y = [labl_path + x for x in f.readlines()]
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
+
+    ############################################################################
+    # initializing and training the model
+    ############################################################################
+    model = UNet(128, is_training=True,k=1)
+    train_op = model.train(lr, opt, weight)
+
+    tf_writer = tf.summary.FileWriter(logdir='./')
+    config = tf.ConfigProto()
+
+    with tf.Session(config=config) as sess:
+        sess.run(tf.global_variables_initializer())
+        saver = tf.train.Saver()
+        avg_dice_score = 0.0
+        avg_loss =0.0
+        best_dice_score = 0.0
+        best_loss = 0.0
+        best_precision = 0.0
+        best_recall = 0.0
+        iters = 0 if (len(stats_df.index)==1) else len(stats_df.index)
+        print(X_train.shape[0])
+        for i in range(0,epochs):
+            print("i:",i)
+            iterative_index = build_indices(X_train.shape[0],chunk_size=9)
+            count = 0;
+            sum_dice_score = 0;
+            sum_loss = 0;
+            sum_precision = 0
+            sum_recall = 0
+            for index in iterative_index:
+                iterative_x = X_train[index]
+                iterative_y = y_train[index]
+                _, loss_np, gs_np, dice_acc_np, summary_np ,flat_output_mask = sess.run(
+                        [train_op, model.loss, model.gs, model.dice_acc, model.merged_summary,model.flat_output_mask],
+                        feed_dict={model.input:iterative_x, model.gt_mask: iterative_y}
+                    )
+                recall = recall_score(iterative_y.reshape(len(index),512*512), np.round(flat_output_mask), average='macro',labels=[0,1])
+                precision = precision_score(iterative_y.reshape(len(index),512*512), np.round(flat_output_mask), average='macro',labels=[0,1])
+                sum_dice_score = sum_dice_score + dice_acc_np
+                sum_loss       = sum_loss + loss_np
+                sum_recall     = sum_recall + recall
+                sum_precision  = sum_precision + precision
+                ratio_predicted = np.count_nonzero(np.round(flat_output_mask)/flat_output_mask.shape[0]/(512*512))
+                ratio_actual = np.count_nonzero(np.round(iterative_y)/iterative_y.shape[0]/(512*512))
+                mismatch = float(ratio_predicted/ratio_actual)
+                count = count + 1
+            # saving checkpoint
+            if i%500==0:
+                stats_df = stats_df.append({
+                        "model_name": name,
+                        "epochs": i,
+                        "dice": sum_dice_score/count,
+                        "loss": sum_loss/count,
+                        "precision": sum_recall/count,
+                        "recall": sum_precision/count
+                    },ignore_index=True)
+                iters += 1
+                epoch_save_path = save_path + "epoch" + str(i) + ".ckpt"
+                saver.save(sess,epoch_save_path)
+                stats_df.to_csv(models_csv_path, index=False)
+        save_path = save_path + "epoch" + str(i) + ".ckpt"
+        saver.save(sess, save_path)
+
+
+    ############################################################################
+    # testing model
+    ############################################################################
+    tf.reset_default_graph()
+
+    tf_writer = tf.summary.FileWriter(logdir='./')
+    config = tf.ConfigProto()
+    config.gpu_options.per_process_gpu_memory_fraction = 0.7
+
+    with tf.Session(config=config) as sess_test:
+        model_test = UNet(512, is_training=True,k=5) if _3d else UNet(512, is_training=True,k=1)
+        dice = model_test.validate();
+        saver = tf.train.Saver()
+        saver.restore(sess_test, save_path)
+
+        _,dice_acc_np_test,output_mask = sess_test.run([dice,model_test.dice_acc,model_test.flat_output_mask],feed_dict={model_test.input: X_test, model_test.gt_mask: y_test})
+        
+        np.save("unet_output.npy",output_mask)
+        result = np.count_nonzero(np.round(output_mask))/6/(512*512)
+        
+        #print( confusion_matrix(np.round(output_mask),y_test))
+
+    tf.reset_default_graph()
+
+    tf_writer = tf.summary.FileWriter(logdir='./')
+    config = tf.ConfigProto()
+    config.gpu_options.per_process_gpu_memory_fraction = 0.7
+
+    with tf.Session(config=config) as sess_test_final:
+        model_test_predict = UNet(512, is_training=True,k=5) if _3d else UNet(512, is_training=True,k=1)
+        predict = model_test_predict.predict();
+        saver = tf.train.Saver()
+        saver.restore(sess_test_final, save_path)
+        predict = sess_test_final.run([predict],feed_dict={model_test_predict.input:X_result})
+        predict = np.array(predict)
+        predict = predict.reshape((predict.shape[1],512,512))
+        print(predict.shape) #18,512,512
+        file_list = glob.glob(path_x_test)
+        file_list.sort();
+        print("File for testing:")
+        print(file_list)
+        for i in range(0,len(file_list)):
+            filename = file_list[i].split("/")[-1]
+            print(filename)
+            np.save(open(path_result+"/"+name+"_"+filename,'wb'),predict[i])
