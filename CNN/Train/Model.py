@@ -7,7 +7,11 @@ import pandas as pd
 from weighted_unet import UNet
 from sklearn.metrics import recall_score
 from sklearn.metrics import precision_score
+import os
+import datetime
+import glob
 
+DEBUG = False
 DIM = 128
 
 def record_parser(record):
@@ -57,13 +61,21 @@ def test_record_parser(record):
     return (parsed['name'],ddat,m,n)
     
 class Model:
-
-    def __init__(chk_path):
-        self.chk_path          = chk_path
+    def __init__(self,chk_path):
+        self.chk_path = chk_path
+        self.name     = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-    def train(self,train_record,validation_record,epochs=3000,lr=.0001,opt="RMSProp",weight=1):
         try:
-            stats_df = pd.read_csv(models_csv_path)
+            original_umask = os.umask(0)
+            os.makedirs(chk_path, mode=0o0777)
+        except FileExistsError:
+            pass
+        finally:
+            os.umask(original_umask)
+            
+    def train(self,train_record,validation_record,csv_path,epochs=3000,lr=.0001,opt="RMSProp",weight=1):
+        try:
+            stats_df = pd.read_csv(csv_path)
         except:
             stats_df = pd.DataFrame(columns=["model_name","epochs","dice","loss","precision","recall"])
 
@@ -100,6 +112,7 @@ class Model:
         sum_precision = 0.0
         iters = 0 if (len(stats_df.index)==1) else len(stats_df.index)
         count = 0
+        print("starting training epochs...")
         for i in range(epochs):
             sess.run(train_init_op)
             while True:
@@ -119,8 +132,8 @@ class Model:
                     ratio_actual = np.count_nonzero(np.round(labl)/labl[0]/(DIM*DIM))
                     mismatch = float(ratio_predicted/ratio_actual)
                     count = count + 1
-            except tf.errors.OutOfRangeError:
-                break
+                except tf.errors.OutOfRangeError:
+                    break
             sess.run(validation_init_op)
             while True:
                 try:
@@ -141,28 +154,41 @@ class Model:
                     count           = count + 1
                 except tf.errors.OutOfRangeError:
                     break
-                if i%500==0:
+                if i%100==0:
+                    print("collecting epoch {} statistics".format(i))
                     stats_df = stats_df.append({
-                        "model_name": name,
+                        "model_name": self.name,
                         "epochs": i,
                         "dice": sum_dice_score/count,
                         "loss": sum_loss/count,
                         "precision": sum_recall/count,
                         "recall": sum_precision/count},ignore_index=True)
                     iters += 1
-                    epoch_chk_path = chk_path + "epoch" + str(i) + ".ckpt"
+                    epoch_chk_path = self.chk_path + "epoch" + str(i) + ".ckpt"
                     saver.save(sess,epoch_chk_path)
-                    stats_df.to_csv(csv_path, index=False)
-        chk_path = chk_path + "epoch" + str(i) + ".ckpt"
+                    stats_df.to_csv("{}ModelStats.csv".format(csv_path), index=False)
+        chk_path = self.chk_path + "epoch" + str(i) + ".ckpt"
         saver.save(sess, chk_path)
         
     def predict(self,test_record,chkpnt_name,save_path):
 
         try:
-            os.mkdir(save_path)
-        except:
+            original_umask = os.umask(0)
+            os.makedirs(save_path,mode=0o0777)
+        except FileExistsError:
             pass
+        finally:
+            os.umask(original_umask)
+
+        try:
+            original_umask = os.umask(0)
+            os.makedirs("{}Predictions/".format(save_path),mode=0o0777)
+        except FileExistsError:
+            pass
+        finally:
+            os.umask(original_umask)
         
+        tf.reset_default_graph()
         sess = tf.Session()
         
         tf_writer = tf.summary.FileWriter(logdir='./')
@@ -174,8 +200,8 @@ class Model:
         next_element = iterator.get_next()
 
         model_test_predict = UNet(128, is_training=True,k=1)
-        saver = tf.train.import_meta_graph("{}{}.ckpt.meta".format(chk_path+chkpnt_name))
-        saver.restore(sess, tf.train.latest_checkpoint(chk_path))
+        saver = tf.train.import_meta_graph("{}{}.ckpt.meta".format(self.chk_path,chkpnt_name))
+        saver.restore(sess, tf.train.latest_checkpoint(self.chk_path))
         init = tf.global_variables_initializer()
         sess.run(init)
         while True:
@@ -189,31 +215,33 @@ class Model:
                 predict = np.array(predict).reshape(100,m,n)
                 predict = np.sum(predict,axis=0)/100
                 predict = np.round(predict)
-                np.save("{}{}.npy".format(save_path,name),predict)
-                with open("{}/chunks.txt".format(save_path),a) as f:
+                np.save("{}Predictions/{}.npy".format(save_path,name),predict)
+                with open("{}prediction_chunks.txt".format(save_path),'a') as f:
                     f.write("{}\n".format(name))
-                    
             except tf.errors.OutOfRangeError:
                 break
 
-    def stitch_predictions(self,input_file):
+    def stitch_predictions(self,input_file,data_path,output_path):
 
         try:
-            os.mkdir("Predictions")
-        except:
+            original_umask = os.umask(0)
+            os.mkdir(output_path,mode=0o0777)
+        except FileExistsError:
             pass
-
+        finally:
+            os.umask(original_umask)
+            
         try:
             fil = open(input_file)
         except:
             Print("Input file not found.")
-            system.exit()
+            system.exit(0)
             
         directories = [x.strip() for x in fil.readlines()]
     
         for directory in directories:
             print("Stitching data for {}...".format(directory))
-            iterrator = glob.iglob("Results/{}/*".format(directory))
+            iterrator = glob.iglob("{}{}*".format(data_path,directory))
             maxX = 0
             maxY = 0
             results = {}
@@ -259,6 +287,6 @@ class Model:
                             print("R: {}, S: {}".format(r,s))
                             print("hits.shape : {}, full.shape: {}, res['data'].shape : {}".format(hits.shape , full.shape, res['data'].shape))
                         hits[r+res['x'],s+res['y']] +=1
-                        full[r+res['x'],s+res['y']] += res['data'][r,s]
+                        full[r+res['x'],s+res['y']] += res['data'][(r,s)]
             prediction = full / hits
-            np.save("Predictions/{}.npy".format(realfil),prediction)
+            np.save("{}{}.npy".format(output_path,realfil),prediction)
