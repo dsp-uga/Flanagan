@@ -55,68 +55,13 @@ def test_record_parser(record):
     ddat = tf.reshape(ddat,ddat_shape)
 
     return (parsed['name'],ddat,m,n)
-
-
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(description = "Data Maker",
-        epilog = "Use this program to randomly split the training data for p4 into random sub-samples.",
-        add_help = "How to use",
-        prog = "python trainer.py -i <path_to_TFRecordFile> [OPTIONAL ARGUMENTS]" )
-
-    parser.add_argument("-t", "--tid",
-        help = "The path to find the .tfrecord file for the training set")
-
-    parser.add_argument("-v", "--vid",
-        help = "The path to find the .tfrecord file for the validation set")
-
-    parser.add_argument("-z", "--tsid",
-        help = "The path to find the .tfrecord file for the test set")
-
-    parser.add_argument("-e", "--epochs", type = int, default = 3000,
-        help = "The number of epochs to run the training for.")
-
-    parser.add_argument("-l", "--lr", type = float, default = 0.0001,
-        help = "Learning rate hyperparameter; default is 0.0001.")
-
-    parser.add_argument("-o", "--opt", type = str, default = 'RMSProp',
-        choices = ['RMSProp','SGD', 'Adam', 'Adagrad', 'Momentum', 'Ftrl'],
-        help = "Optimizer hyperparameter; default is RMSProp.")
-
-    parser.add_argument("-w", "--weight", type = float, default = 1.,
-        help = "Weighting of positives relative to negatives in loss; default is 1.")
-
-    parser.add_argument("-x", "--training", action = "store_false",
-        help = "Flag to indicate that this is to produce test results.")
-
-    parser.add_argument("-r", "--reload",
-        help = "Path frm which to reload the UNET weights. NOTE: Should only be used in conjunction with the '-x' flag.")
-
-    parser.add_argument("-s", "--save_path",
-        help = "Path to save the results of a test session to. NOTE: Should only be used in conjunction with the '-x' flag.")
-
-    name = "p4"
-
-    args = vars(parser.parse_args())
-
-    train_filename      = args['tid']
-    validation_filename = args['vid']
-    test_filename       = args['tsid']
-    save_path           = args['save_path']
-    reload_path         = args['reload']
-    epochs              = args['epochs']
-    lr                  = args['lr']
-    opt                 = args['opt']
-    weight              = args['weight']
-    training            = args['training']
     
-    if training:
-        chk_path = "../data/Nick/checkpoints/"
-        res_path = "../data/Nick/results/"
-        csv_path = "../data/Nick/model_stats.csv"
+class Model:
 
-
-        # for saving model statistics:
+    def __init__(chk_path):
+        self.chk_path          = chk_path
+        
+    def train(self,train_record,validation_record,epochs=3000,lr=.0001,opt="RMSProp",weight=1):
         try:
             stats_df = pd.read_csv(models_csv_path)
         except:
@@ -124,10 +69,10 @@ if __name__ == "__main__":
 
         sess = tf.Session()
 
-        train_dataset = tf.data.TFRecordDataset([train_filename])
+        train_dataset = tf.data.TFRecordDataset([train_record])
         train_dataset = train_dataset.map(record_parser)
-
-        validation_dataset = tf.data.TFRecordDataset([validation_filename])
+        
+        validation_dataset = tf.data.TFRecordDataset([validation_record])
         validation_dataset = validation_dataset.map(record_parser)
 
         iterator = tf.data.Iterator.from_structure(train_dataset.output_types,train_dataset.output_shapes)
@@ -162,21 +107,20 @@ if __name__ == "__main__":
                     val = sess.run(next_element)
                     data,labl,m,n = val
                     _, loss_np, gs_np, dice_acc_np, summary_np ,flat_output_mask = sess.run(
-                            [train_op, model.loss, model.gs, model.dice_acc, model.merged_summary,model.flat_output_mask],
-                            feed_dict={model.input: data, model.gt_mask: labl}
-                        )
-                    recall = 0#recall_score(labl.reshape(DIM*DIM), np.round(flat_output_mask), average='macro',labels=[0,1])
-                    precision = 0#precision_score(labl.reshape(DIM*DIM), np.round(flat_output_mask), average='macro',labels=[0,1])
-                    sum_dice_score = sum_dice_score + dice_acc_np
-                    sum_loss       = sum_loss + loss_np
-                    sum_recall     = 0#sum_recall + recall
-                    sum_precision  = sum_precision + precision
+                        [train_op, model.loss, model.gs, model.dice_acc, model.merged_summary,model.flat_output_mask],
+                        feed_dict={model.input: data, model.gt_mask: labl})
+                    recall          = 0
+                    precision       = 0
+                    sum_dice_score  = sum_dice_score + dice_acc_np
+                    sum_loss        = sum_loss + loss_np
+                    sum_recall      = 0
+                    sum_precision   = sum_precision + precision
                     ratio_predicted = np.count_nonzero(np.round(flat_output_mask)/flat_output_mask.shape[0]/(DIM*DIM))
                     ratio_actual = np.count_nonzero(np.round(labl)/labl[0]/(DIM*DIM))
                     mismatch = float(ratio_predicted/ratio_actual)
                     count = count + 1
-                except tf.errors.OutOfRangeError:
-                    break
+            except tf.errors.OutOfRangeError:
+                break
             sess.run(validation_init_op)
             while True:
                 try:
@@ -184,51 +128,54 @@ if __name__ == "__main__":
                     data,labl,m,n = val
                     _, loss_np, gs_np, dice_acc_np, summary_np ,flat_output_mask = sess.run(
                         [train_op, model.loss, model.gs, model.dice_acc, model.merged_summary,model.flat_output_mask],
-                        feed_dict={model.input: data, model.gt_mask: labl}
-                    )
-                    recall = 0#recall_score(labl.reshape(DIM*DIM), np.round(flat_output_mask), average='macro',labels=[0,1])
-                    precision = 0#precision_score(labl.reshape(DIM*DIM), np.round(flat_output_mask), average='macro',labels=[0,1])
-                    sum_dice_score = sum_dice_score + dice_acc_np
-                    sum_loss       = sum_loss + loss_np
-                    sum_recall     = 0#sum_recall + recall
-                    sum_precision  = sum_precision + precision
+                        feed_dict={model.input: data, model.gt_mask: labl})
+                    recall          = 0
+                    precision       = 0
+                    sum_dice_score  = sum_dice_score + dice_acc_np
+                    sum_loss        = sum_loss + loss_np
+                    sum_recall      = 0
+                    sum_precision   = sum_precision + precision
                     ratio_predicted = np.count_nonzero(np.round(flat_output_mask)/flat_output_mask.shape[0]/(DIM*DIM))
-                    ratio_actual = np.count_nonzero(np.round(labl)/labl[0]/(DIM*DIM))
-                    mismatch = float(ratio_predicted/ratio_actual)
-                    count = count + 1
+                    ratio_actual    = np.count_nonzero(np.round(labl)/labl[0]/(DIM*DIM))
+                    mismatch        = float(ratio_predicted/ratio_actual)
+                    count           = count + 1
                 except tf.errors.OutOfRangeError:
                     break
-            if i%500==0:
+                if i%500==0:
                     stats_df = stats_df.append({
-                            "model_name": name,
-                            "epochs": i,
-                            "dice": sum_dice_score/count,
-                            "loss": sum_loss/count,
-                            "precision": sum_recall/count,
-                            "recall": sum_precision/count
-                        },ignore_index=True)
+                        "model_name": name,
+                        "epochs": i,
+                        "dice": sum_dice_score/count,
+                        "loss": sum_loss/count,
+                        "precision": sum_recall/count,
+                        "recall": sum_precision/count},ignore_index=True)
                     iters += 1
                     epoch_chk_path = chk_path + "epoch" + str(i) + ".ckpt"
                     saver.save(sess,epoch_chk_path)
                     stats_df.to_csv(csv_path, index=False)
         chk_path = chk_path + "epoch" + str(i) + ".ckpt"
         saver.save(sess, chk_path)
-        #epoch information
-    else:
+        
+    def predict(self,test_record,chkpnt_name,save_path):
+
+        try:
+            os.mkdir(save_path)
+        except:
+            pass
+        
         sess = tf.Session()
         
         tf_writer = tf.summary.FileWriter(logdir='./')
     
-        test_dataset = tf.data.TFRecordDataset([test_filename])
+        test_dataset = tf.data.TFRecordDataset([test_record])
         test_dataset = test_dataset.map(test_record_parser)
 
         iterator = test_dataset.make_one_shot_iterator()
         next_element = iterator.get_next()
 
         model_test_predict = UNet(128, is_training=True,k=1)
-        #saver = tf.train.Saver()
-        saver = tf.train.import_meta_graph(reload_path+"epoch3500.ckpt.meta")
-        saver.restore(sess, tf.train.latest_checkpoint(reload_path))
+        saver = tf.train.import_meta_graph("{}{}.ckpt.meta".format(chk_path+chkpnt_name))
+        saver.restore(sess, tf.train.latest_checkpoint(chk_path))
         init = tf.global_variables_initializer()
         sess.run(init)
         while True:
@@ -242,17 +189,76 @@ if __name__ == "__main__":
                 predict = np.array(predict).reshape(100,m,n)
                 predict = np.sum(predict,axis=0)/100
                 predict = np.round(predict)
-                #for dat in data:
-                #    dat = dat.reshape(1,128,128,1)
-                #    
-                #    predict = np.array(predict)
-                #    predict = predict.reshape(m,n)
-                #    res.append(predict)
-                #res = np.array(res)
-                #res = np.sum(res,axis=0)/100
-                #res = np.round(res)
-                print("save path: ", save_path)
-                print("name : ", name)
                 np.save("{}{}.npy".format(save_path,name),predict)
+                with open("{}/chunks.txt".format(save_path),a) as f:
+                    f.write("{}\n".format(name))
+                    
             except tf.errors.OutOfRangeError:
                 break
+
+    def stitch_predictions(self,input_file):
+
+        try:
+            os.mkdir("Predictions")
+        except:
+            pass
+
+        try:
+            fil = open(input_file)
+        except:
+            Print("Input file not found.")
+            system.exit()
+            
+        directories = [x.strip() for x in fil.readlines()]
+    
+        for directory in directories:
+            print("Stitching data for {}...".format(directory))
+            iterrator = glob.iglob("Results/{}/*".format(directory))
+            maxX = 0
+            maxY = 0
+            results = {}
+            i=0
+            for fil in iterrator:
+                realfil = fil[fil.find("\'")+1:fil.find("_")]
+                result = {}
+                m = fil.find('_')
+                n = fil.rfind("\'.npy")
+                coors = [int(x) for x in fil[m+1:n].split('_')]
+                if DEBUG :
+                    print("realfil: {}".format(realfil))
+                    print("n: {}".format(n))
+                    print("m: {}".format(n))
+                    print("fil[m:n]: {}".format(fil[m:n]))
+                    print("coors: {}".format(coors))
+                xx  = coors[1]
+                x = coors[0]
+                yy  = coors[3]
+                y = coors[2]
+                if xx > maxX : maxX = xx
+                if yy > maxY : maxY = yy
+                result['x']=x
+                result['y']=y
+                result['xx']=xx
+                result['yy']=yy
+                result['data'] = np.load(fil)
+                results[i]=result
+                i+=1
+            if DEBUG :print("maxX: {},maxY: {}".format(maxX,maxY))
+            full = np.zeros((maxX,maxY))
+            hits = np.zeros((maxX,maxY))
+            for i in results.keys():
+                res = results[i]
+                if DEBUG :
+                    print("res['x']: {}".format(res['x']))
+                    print("res['y']: {}".format(res['y']))
+                    print("res['xx']: {}".format(res['xx']))
+                    print("res['yy']: {}".format(res['yy']))                
+                for r in range(128):
+                    for s in range(128):
+                        if DEBUG :
+                            print("R: {}, S: {}".format(r,s))
+                            print("hits.shape : {}, full.shape: {}, res['data'].shape : {}".format(hits.shape , full.shape, res['data'].shape))
+                        hits[r+res['x'],s+res['y']] +=1
+                        full[r+res['x'],s+res['y']] += res['data'][r,s]
+            prediction = full / hits
+            np.save("Predictions/{}.npy".format(realfil),prediction)

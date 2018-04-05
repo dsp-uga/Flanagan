@@ -4,61 +4,38 @@ from skimage.io import ImageCollection
 import tensorflow as tf
 import argparse
 from sklearn.model_selection import ShuffleSplit
+import os
 
 DEBUG = True
 
-if __name__ == "__main__":
+class TestTFRecordEncoder:
+    def __init__(self,in_file,dat_path,out_path):
+        self.in_file  = in_file
+        self.dat_path = dat_path
+        self.out_path = out_path
 
-    parser = argparse.ArgumentParser(description = "Data Maker",
-        epilog = "Use this program to randomly split the training data for p4 into random sub-samples.",
-        add_help = "How to use",
-        prog = "python TFRecordEncoder.py -i <path_to_names> -l <path_to-labels> -d <path_to_data> -o <path_for_output>" )
-
-    parser.add_argument("-i", "--id", required=True,
-        help = "The path to find the file with the names of the input datasets.")
-
-    parser.add_argument("-l", "--labl",
-        help = "The path to find the label images at.")
-
-    parser.add_argument("-d", "--data", required=True,
-        help = "The path to find the data image sets at.")
-
-    parser.add_argument("-o", "--output",required=True,
-        help = "The path to write the output files to. ")
-
-    parser.add_argument("-t", "--test", action="store_true",
-        help = "A flag to indicate that the data encoding is for test data")
-    
-    args = vars(parser.parse_args())
-
-    name     = args['id']
-    dat_path = args['data']
-    lab_path = args['labl']
-    out_path = args['output']
-    test     = args['test']
-    
-    with open(name) as f:
-        files = f.readlines()
-        
-    files = [x.strip() for x in files]
-
-
-    ####################NEED TO SPLIT THE TESTING DATA INTO 128 by 128#################################
-    
-    if test:
-        writer = tf.python_io.TFRecordWriter(out_path + "_test.tfrecord")
+    def writeTestTFRecord(self):
+        try:
+            original_umask = os.umask(0)
+            os.makedirs(self.out_path, mode=0o0777)
+        except FileExistsError:
+            pass
+        finally:
+            os.umask(original_umask)
+            
+        with open(self.in_file) as f:
+            files = [x.strip() for x in f.readlines()]
+        writer = tf.python_io.TFRecordWriter(self.out_path + "test.tfrecord")
         for fil in files:
-            test_data_path = dat_path + fil     
+            print("******************************processing testing files...*************************************")
+            test_data_path = "{}{}.npy".format(self.dat_path, fil)     
             data = np.load(test_data_path).astype(np.float32) 
             k,m_train,n_train = data.shape
+            
             print("Converting numpy arrays to raw strings")
             data_raw = data.tostring()
-            name = fil[:-4]
-            name = bytes(name,'utf-8')
-            if (DEBUG) : 
-                print("data.shape: ", data.shape)
-                print("M_train: ",m_train,", N_train: ",n_train)
-                print(name)
+            name = bytes(fil,'utf-8')
+
             print("Writing raw strings to files.")
             train_example = tf.train.Example(
                 features = tf.train.Features(
@@ -72,24 +49,32 @@ if __name__ == "__main__":
             )
             writer.write(train_example.SerializeToString())
         writer.close()
-    else:
-        train_writer = tf.python_io.TFRecordWriter(out_path + "_train.tfrecord")
-        test_writer  = tf.python_io.TFRecordWriter(out_path + "_validation.tfrecord")
+
+class TrainTFRecordEncoder:
+    def __init__(self,in_file,dat_path,lab_path,out_path):
+        self.in_file = in_file
+        self.dat_path = dat_path
+        self.lab_path = lab_path
+        self.out_path = out_path
+
+    def writeTrainTFRecord(self):
+        with open(self.in_file) as f:
+            files = [x.strip() for x in f.readlines()]
+
+        train_writer = tf.python_io.TFRecordWriter(self.out_path + "train.tfrecord")
+        test_writer  = tf.python_io.TFRecordWriter(self.out_path + "validation.tfrecord")
+        
         for train_indices,test_indices in ShuffleSplit(n_splits=1,test_size=.33).split(files):        
             print("******************************processing train files...*************************************")
             for train_index in train_indices:
                 train_file = files[train_index]
-                train_data_path = dat_path + train_file + "/*"    
-                train_labl_path = lab_path + train_file  + ".png"
+                train_data_path = "{}{}/*".format(self.dat_path,train_file)
+                train_labl_path = "{}{}.png".format(self.lab_path, train_file)
                 train_data = np.array(ImageCollection(train_data_path)).astype(np.float32)
                 train_labl = io.imread(train_labl_path).astype(np.float32)
                 m_train,n_train = train_labl.shape
                 ddat_train = np.concatenate([train_data,train_labl.reshape(1,m_train,n_train)])
-                print("train_data.shape: ", train_data.shape)
-                print("train_labl.shape: ", train_labl.shape)
-                print("ddat_train.shape: ", ddat_train.shape)
-                print("M_train: ",m_train,", N_train: ",n_train)
-                print("Converting numpy arrays to raw strings")
+                print("Converting numpy arrays to raw strings..")
                 train_ddat_raw = ddat_train.tostring()
                 print("Writing raw strings to files.")
                 train_example = tf.train.Example(
@@ -102,22 +87,20 @@ if __name__ == "__main__":
                     )
                 )
                 train_writer.write(train_example.SerializeToString())
+            print("done.")
             train_writer.close()
             print("******************************processing validation files...*************************************")
             for test_index in test_indices:
                 test_file = files[test_index]
-                test_data_path = dat_path + test_file + "/*"
-                test_labl_path = lab_path + test_file + ".png"
+                test_data_path = "{}{}/*".format(self.dat_path,test_file)
+                test_labl_path = "{}{}.png".format(self.lab_path, test_file)
                 test_data = np.array(ImageCollection(test_data_path)).astype(np.float32)
                 test_labl = io.imread(test_labl_path).astype(np.float32)
                 m_test,n_test = test_labl.shape
                 ddat_test = np.concatenate([test_data,test_labl.reshape(1,m_test,n_test)])
-                print("test_data.shape: ", test_data.shape)
-                print("test_labl.shape: ", test_labl.shape)
-                print("ddat_test.shape: ", ddat_test.shape)
-                print("M_test: ",m_test,", N_test: ",n_test)
-                print("Converting numpy arrays to raw strings")
+                print("Converting numpy arrays to raw strings..")
                 test_ddat_raw  = ddat_test.tostring()
+                print("Writing raw strings to files.")
                 test_example = tf.train.Example(
                     features = tf.train.Features(
                         feature = {
@@ -128,5 +111,5 @@ if __name__ == "__main__":
                     )
                 )
                 test_writer.write(test_example.SerializeToString())
+            print("done.")
             test_writer.close()
-        
