@@ -53,7 +53,7 @@ if __name__ == "__main__":
             k,m_train,n_train = data.shape
             print("Converting numpy arrays to raw strings")
             data_raw = data.tostring()
-            name = test_data_path[:-4]
+            name = fil[:-4]
             name = bytes(name,'utf-8')
             if (DEBUG) : 
                 print("data.shape: ", data.shape)
