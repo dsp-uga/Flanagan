@@ -7,8 +7,9 @@ This project uses the time series grayscale 8-bit images of cilia biopsies taken
 In this repository, we are offering three different methods as follows using different packages to locate the cilia and segment them out from the surrounding images.
 
 1. Optical Flow using OpenCV
-2. Convolutional Neural Network using tf-unet
-3. Histogram of Gradient using scikit-image and Support Vector machine using OpenCV
+2. Convolutional Neural Network using Unet
+3. Flatten images and Support Vector machine using OpenCV
+4. Histogram of Gradient using scikit-image and Support Vector machine using OpenCV
 
 Read more details about each algorithm and their applications in our [WIKI](https://github.com/dsp-uga/Flanagan/wiki) tab.
 
@@ -46,6 +47,7 @@ python -m [algorithm] [args-for-the-algorithm]
 
   - `OpticalFlow`: Running Optical Flow
   - `CNN`: Running Convolutional Neural Network
+  - `FM2SVM`: Running Support Vector Machine by flatten images
   - `HOG2SVM`: Running Support Vector Machine by HOG images
 
 Each folders includes one module and you can run it through the command above. Each module provides their own arguments. Use `help()` to know more details when running the algorithms.
@@ -66,7 +68,9 @@ The results count on the ratio of the values of intersection over union. Take th
 |-----------|-----------------------|--------------|
 |OpticalFlow|
 |CNN        |
-|HOG+SVM    |N=30                   | 9.01251      |
+|FM2SVM     |
+|HOG2SVM    |N=30                   | 9.01251      |
+|HOG2SVM    |N=20                   | 7.93707      |
 
 
 ## Discussion
@@ -83,17 +87,25 @@ The results count on the ratio of the values of intersection over union. Take th
       -
       -
 
-  3. **Support Vector Machine with Histogram of Gradient**
+  3. **Support Vector Machine with Flatten Images**
+
+      -  
+      - Pixelwise segmentations are not suitable to use Support Vector Machine
+
+
+  4. **Support Vector Machine with Histogram of Gradient**
 
       - HOG works well in detecting the shape of cells but not cilia (Cilia are too thin and small to detect)
       - Instead of inputting HOG feature descriptors in SVM, we used HOG images since the labels are assigned to each pixel but not each image. That is to say, stacking all pixels of 211 training videos, there will be 4 million instances in SVM.
-      - Takes forever to run the model because of the great amount of instances
+      - Since we have small patches setting in HOG, it took 24 hours to run all HOG descriptors (Both training and testing set)
+      - It takes forever to run the model because of the great amount of instances
       - Visualization of one frame of the video, one hog frame of the video, and the mask:
 
       <p align = "center">
       <img src = "img/hog2svm_visualization.png" width = >
       </p>
 
+      - Pixelwise segmentations are not suitable to use Support Vector Machine
 
 ## Authors
 (Ordered alphabetically)
