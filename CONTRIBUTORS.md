@@ -13,4 +13,4 @@
 **I-Huei Ho** - [melanieihuei](https://github.com/melanieihuei)
 
 - Support Vector Machine with Histogram of Gradient descriptors
-- Documentation
+- Documentation and Environment Setting
