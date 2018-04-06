@@ -99,7 +99,6 @@ The results count on the ratio of the values of intersection over union. Take th
       - Takes a huge amount of time to perform SVM. Tried on small data with 10 train samples and 2 test samples, which took about 5 hours to train SVM and 40 minutes to predict. Ended up with no desired output
       - Pixelwise segmentations are not suitable to use Support Vector Machine
 
-
   4. **Support Vector Machine with Histogram of Gradient**
 
       - HOG works well in detecting the shape of cells but not cilia (Cilia are too thin and small to detect)
