@@ -1,4 +1,4 @@
-# Cilia Segmentation
+# Ciliary Motion Extraction
 
 This repository contains various algorithms implemented on cilia images segmentation which are completed on CSCI 8360, Data Science Practicum at the University of Georgia, Spring 2018.
 
@@ -67,7 +67,7 @@ The results count on the ratio of the values of intersection over union. Take th
 | Module    | arguments             | Mean IoU     |
 |-----------|-----------------------|--------------|
 |OpticalFlow|                       | 20.6449      |
-|CNN        |
+|CNN        |N/A                    |  N/A         |
 |FM2SVM     |                       | -            |
 |HOG2SVM    |N=30                   | 9.01251      |
 |HOG2SVM    |N=20                   | 7.93707      |
@@ -88,9 +88,11 @@ The results count on the ratio of the values of intersection over union. Take th
 
   2. **Convolutional Neural Network**
 
-      -
-      -
-      -
+      - Used the UNET architecture to try to segment pixels into binary classification: cilia or not a cilia. 
+      - First had to "chunk" up the test files so that they would all be a consistent size for input into the CNN.
+      - 5000 training epochs were run on each training dataset: one picture from the video chosen at random and cropped at random to fit the size requirements, fed through the machine and the weights corrected with back prop.
+      - Predictions were then made individually for each image of a video for each testing chunk, the predictions averaged out, and the predictions stitched back together again.
+      - Results were not promising. 
 
   3. **Support Vector Machine with Flatten Images**
 

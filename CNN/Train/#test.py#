@@ -1,0 +1,17 @@
+from Model import Model
+
+ckpth = "Test/Data/Ckpts/"
+model = Model(ckpth)
+train_rec = "../PreProcess/Test/Data/TFRecords/train.tfrecord"
+val_rec = "../PreProcess/Test/Data/TFRecords/validation.tfrecord"
+epochs = 1
+csv_path = "Test/Data/"
+model.train(train_record = train_rec,validation_record=val_rec,epochs=epochs,csv_path = csv_path)
+test_rec = "../PreProcess/Test/Data/TFRecords/test.tfrecord"
+chkpnt_name = "epoch0"
+save_path = "Test/Data/"
+model.predict(test_rec,chkpnt_name,save_path)
+input_file = "Test/Data/prediction_chunks.txt"
+data_path = "Test/Data/Predictions/"
+output_path = "Test/Data/FinalPreds/"
+model.stitch_predictions(input_file,data_path,output_path)
