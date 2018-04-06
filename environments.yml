@@ -1,0 +1,15 @@
+channels:
+- defaults
+- menpo
+dependencies:
+- argparse
+- numpy
+- scipy
+- matplotlib
+- scikit-image
+- scikit-learn
+- pandas
+- random
+- pip:
+  - opencv-python
+  - tensorflow
