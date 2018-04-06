@@ -14,7 +14,7 @@ from skimage import io as io
 import os
 import sys
 
-DEBUG = True
+DEBUG = False
 
 def chunk_simple_fits(data,fil,top1,top2,chunk_size,chunk_save_path,out_path):
     for i in range(int(top1)):

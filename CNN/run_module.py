@@ -1,7 +1,7 @@
-from CNN.Train import Model
-from CNN.PreProcess.ImageCollectionConverter import ImageCollectionConverter
-from CNN.PreProcess.TFRecordEncoder import TestTFRecordEncoder, TrainTFRecordEncoder
-from CNN.PreProcess.TestSplitter import TestSplitter
+from .Train.Model import Model
+from .PreProcess.ImageCollectionConverter import ImageCollectionConverter
+from .PreProcess.TFRecordEncoder import TestTFRecordEncoder, TrainTFRecordEncoder
+from .PreProcess.TestSplitter import TestSplitter
 from . import run_module
 import sys
 import argparse

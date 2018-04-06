@@ -6,7 +6,7 @@ import argparse
 from sklearn.model_selection import ShuffleSplit
 import os
 
-DEBUG = True
+DEBUG = False
 
 class TestTFRecordEncoder:
     def __init__(self,in_file,dat_path,out_path):
