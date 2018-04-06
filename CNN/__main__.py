@@ -1,7 +1,7 @@
-from CNN.Train import Model
-from CNN.PreProcess.ImageCollectionConverter import ImageCollectionConverter
-from CNN.PreProcess.TFRecordEncoder import TestTFRecordEncoder, TrainTFRecordEncoder
-from CNN.PreProcess.TestSplitter import TestSplitter
+from .Train import Model
+from .PreProcess.ImageCollectionConverter import ImageCollectionConverter
+from .PreProcess.TFRecordEncoder import TestTFRecordEncoder, TrainTFRecordEncoder
+from .PreProcess.TestSplitter import TestSplitter
 from . import run_module
 import sys
 import argparse
@@ -32,9 +32,9 @@ def main():
                 <test_out_path>/Chunks/\n\
                 which will contain all of the chunks of data from the test input file.")
     
-    parser.add_argument("--test_record_infile", default = "Data/chunks.txt",
+    parser.add_argument("--chunk_record_infile", default = "Data/chunks.txt",
         help = "The path to find the input file containing the names of all of the chunked test data for the TestTFRecordEncoder.")
-    parser.add_argument("--test_data_path", default = "Data/Test/",
+    parser.add_argument("--chunk_data_path", default = "Data/Test/",
         help = "The path to find the chunked up test data for the TestTFRecordEncoder.")
 
     

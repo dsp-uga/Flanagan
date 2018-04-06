@@ -4,7 +4,7 @@ import numpy as np
 import random
 import argparse
 import pandas as pd
-from weighted_unet import UNet
+from .weighted_unet import UNet
 from sklearn.metrics import recall_score
 from sklearn.metrics import precision_score
 import os
