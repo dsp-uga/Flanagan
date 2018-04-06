@@ -66,9 +66,9 @@ The results count on the ratio of the values of intersection over union. Take th
 
 | Module    | arguments             | Mean IoU     |
 |-----------|-----------------------|--------------|
-|OpticalFlow|
+|OpticalFlow|                       | 19.6772      |
 |CNN        |
-|FM2SVM     |
+|FM2SVM     |                       | -            |
 |HOG2SVM    |N=30                   | 9.01251      |
 |HOG2SVM    |N=20                   | 7.93707      |
 
@@ -77,9 +77,14 @@ The results count on the ratio of the values of intersection over union. Take th
 
   1. **Optical Flow**
 
-      -
-      -
-      -
+      - Calculates two-frame motion estimation and computes a degree of flow for each pixel. Ends up with `N-1` degree matrices for a video of `N` frames
+      - A sum of these degree matrices is found and scaled down to `{0,1,2}` by observing the pixles in motion
+      - Difficult to scale the videos where even the cell has a motion. Results in larger areas of motion. This effected on overall mean IoU
+      - Visualisation of one frame of the video and the predicted mask:
+
+      <p align = "center">
+      <img src = "img/opticalflow.png" >
+      </p>
 
   2. **Convolutional Neural Network**
 
@@ -89,9 +94,10 @@ The results count on the ratio of the values of intersection over union. Take th
 
   3. **Support Vector Machine with Flatten Images**
 
-      -  
+      - Flattening `N` images, each of dimension `(X, Y)` results in a matrix of dimension `(X*Y, N)`
+      - Each row of matrix is labelled with respective pixel in the mask
+      - Takes a huge amount of time to perform SVM. Tried on small data with 10 train samples and 2 test samples, which took about 5 hours to train SVM and 40 minutes to predict. Ended up with no desired output
       - Pixelwise segmentations are not suitable to use Support Vector Machine
-
 
   4. **Support Vector Machine with Histogram of Gradient**
 
