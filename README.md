@@ -66,7 +66,7 @@ The results count on the ratio of the values of intersection over union. Take th
 
 | Module    | arguments             | Mean IoU     |
 |-----------|-----------------------|--------------|
-|OpticalFlow|                       | 19.6772      |
+|OpticalFlow|                       | 20.6449      |
 |CNN        |
 |FM2SVM     |                       | -            |
 |HOG2SVM    |N=30                   | 9.01251      |
