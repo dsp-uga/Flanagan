@@ -7,8 +7,9 @@ This project uses the time series grayscale 8-bit images of cilia biopsies taken
 In this repository, we are offering three different methods as follows using different packages to locate the cilia and segment them out from the surrounding images.
 
 1. Optical Flow using OpenCV
-2. Convolutional Neural Network using tf-unet
-3. Histogram of Gradient using scikit-image and Support Vector machine using OpenCV
+2. Convolutional Neural Network using Unet
+3. Flatten images and Support Vector machine using OpenCV
+4. Histogram of Gradient using scikit-image and Support Vector machine using OpenCV
 
 Read more details about each algorithm and their applications in our [WIKI](https://github.com/dsp-uga/Flanagan/wiki) tab.
 
@@ -46,6 +47,7 @@ python -m [algorithm] [args-for-the-algorithm]
 
   - `OpticalFlow`: Running Optical Flow
   - `CNN`: Running Convolutional Neural Network
+  - `FM2SVM`: Running Support Vector Machine by flatten images
   - `HOG2SVM`: Running Support Vector Machine by HOG images
 
 Each folders includes one module and you can run it through the command above. Each module provides their own arguments. Use `help()` to know more details when running the algorithms.
@@ -64,18 +66,25 @@ The results count on the ratio of the values of intersection over union. Take th
 
 | Module    | arguments             | Mean IoU     |
 |-----------|-----------------------|--------------|
-|OpticalFlow|
+|OpticalFlow|                       | 19.6772      |
 |CNN        |
-|HOG+SVM    |N=30                   | 9.01251      |
+|FM2SVM     |                       | -            |
+|HOG2SVM    |N=30                   | 9.01251      |
+|HOG2SVM    |N=20                   | 7.93707      |
 
 
 ## Discussion
 
   1. **Optical Flow**
 
-      -
-      -
-      -
+      - Calculates two-frame motion estimation and computes a degree of flow for each pixel. Ends up with `N-1` degree matrices for a video of `N` frames
+      - A sum of these degree matrices is found and scaled down to `{0,1,2}` by observing the pixles in motion
+      - Difficult to scale the videos where even the cell has a motion. Results in larger areas of motion. This effected on overall mean IoU
+      - Visualisation of one frame of the video and the predicted mask:
+
+      <p align = "center">
+      <img src = "img/opticalflow.png" >
+      </p>
 
   2. **Convolutional Neural Network**
 
@@ -83,17 +92,27 @@ The results count on the ratio of the values of intersection over union. Take th
       -
       -
 
-  3. **Support Vector Machine with Histogram of Gradient**
+  3. **Support Vector Machine with Flatten Images**
+
+      - Flattening `N` images, each of dimension `(X, Y)` results in a matrix of dimension `(X*Y, N)`
+      - Each row of matrix is labelled with respective pixel in the mask
+      - Takes a huge amount of time to perform SVM. Tried on small data with 10 train samples and 2 test samples, which took about 5 hours to train SVM and 40 minutes to predict. Ended up with no desired output
+      - Pixelwise segmentations are not suitable to use Support Vector Machine
+
+
+  4. **Support Vector Machine with Histogram of Gradient**
 
       - HOG works well in detecting the shape of cells but not cilia (Cilia are too thin and small to detect)
       - Instead of inputting HOG feature descriptors in SVM, we used HOG images since the labels are assigned to each pixel but not each image. That is to say, stacking all pixels of 211 training videos, there will be 4 million instances in SVM.
-      - Takes forever to run the model because of the great amount of instances
+      - Since we have small patches setting in HOG, it took 24 hours to run all HOG descriptors (Both training and testing set)
+      - It takes forever to run the model because of the great amount of instances
       - Visualization of one frame of the video, one hog frame of the video, and the mask:
 
       <p align = "center">
       <img src = "img/hog2svm_visualization.png" width = >
       </p>
 
+      - Pixelwise segmentations are not suitable to use Support Vector Machine
 
 ## Authors
 (Ordered alphabetically)
