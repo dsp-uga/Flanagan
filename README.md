@@ -1,4 +1,4 @@
-# Cilia Segmentation
+# Ciliary Motion Extraction
 
 This repository contains various algorithms implemented on cilia images segmentation which are completed on CSCI 8360, Data Science Practicum at the University of Georgia, Spring 2018.
 
